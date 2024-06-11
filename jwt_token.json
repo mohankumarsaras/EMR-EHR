@@ -1,19 +1,73 @@
-import json
 import jwt
+import json
+import base64
+import urllib.parse
+from datetime import datetime, timedelta
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import rsa
 
-private_key = "qwertyuiopasdfghjklzxcvbnm"
+# Replace with your actual private key
+private_key = """-----BEGIN PRIVATE KEY-----
+...your private key...
+-----END PRIVATE KEY-----"""
 
-token_payload = {
-    "iss": "10ae94ee-ef60-4a1a-90d3-330cafa1815f",
-    "sub": "10ae94ee-ef60-4a1a-90d3-330cafa1815f",
-    "aud": "https://fhir.epic.com/interconnect-fhir-oauth/oauth2/authorize",
-    "exp": 1622569200,
+# Replace with your actual public key
+public_key = """-----BEGIN PUBLIC KEY-----
+...your public key...
+-----END PUBLIC KEY-----"""
+
+# Generate JWT
+header = {
+    "alg": "RS256",
+    "typ": "JWT"
+}
+payload = {
+    "iss": "your-client-id",
+    "sub": "your-client-id",
+    "aud": "https://your-auth-server.com/token",
+    "exp": datetime.utcnow() + timedelta(hours=1),
+    "nbf": datetime.utcnow(),
+    "iat": datetime.utcnow(),
     "jti": "unique-jwt-id"
 }
 
-# Create the token using RS256 algorithm
-token = jwt.encode(token_payload, private_key, algorithm="RS256", headers={"alg": "RS256", "typ": "JWT"})
+token = jwt.encode(payload, private_key, algorithm="RS256", headers=header)
+token_str = token if isinstance(token, str) else token.decode('utf-8')
 
-# Save the token to a JSON file
-with open('jwt_token.json', 'w') as json_file:
-    json.dump({"token": token.decode('utf-8')}, json_file)
+print("JWT:", token_str)
+
+# Decode JWT components
+def base64url_decode(input):
+    rem = len(input) % 4
+    if rem > 0:
+        input += '=' * (4 - rem)
+    return base64.urlsafe_b64decode(input.encode('utf-8'))
+
+header_b64, payload_b64, signature_b64 = token_str.split('.')
+header = base64url_decode(header_b64)
+payload = base64url_decode(payload_b64)
+signature = base64url_decode(signature_b64)
+
+print("Header:", json.loads(header))
+print("Payload:", json.loads(payload))
+print("Signature:", signature)
+
+# Convert RSA public key to JWK format
+public_key_obj = serialization.load_pem_public_key(public_key.encode())
+public_numbers = public_key_obj.public_numbers()
+
+jwk = {
+    "kty": "RSA",
+    "n": base64.urlsafe_b64encode(public_numbers.n.to_bytes((public_numbers.n.bit_length() + 7) // 8, 'big')).decode('utf-8').rstrip("="),
+    "e": base64.urlsafe_b64encode(public_numbers.e.to_bytes((public_numbers.e.bit_length() + 7) // 8, 'big')).decode('utf-8').rstrip("=")
+}
+
+print("JWK:", json.dumps(jwk))
+
+# Form the URL with JWK Set
+base_url = "https://your-auth-server.com/token"
+jwk_json = json.dumps(jwk)
+encoded_jwk = urllib.parse.quote(jwk_json)
+url = f"{base_url}?jwk={encoded_jwk}"
+
+print("URL:", url)
