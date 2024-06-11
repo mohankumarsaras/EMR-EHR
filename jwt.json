@@ -1,31 +1,16 @@
-import json
-import jwt
+private_key = "qwertyuiopasdfghjklzxcvbnm"
 
-# Print the version of PyJWT to ensure it is installed correctly
-print(jwt.__version__)
-
-# Private key (replace with your actual private key)
-private_key = "qwertyuiopasdfghjklzxcvbnmmnbvcxzlkjhgfdsapoiuytrewq"
-
-# Payload
-payload = {
+token_payload = {
     "iss": "10ae94ee-ef60-4a1a-90d3-330cafa1815f",
     "sub": "10ae94ee-ef60-4a1a-90d3-330cafa1815f",
-    "aud": "https://fhir.epic.com/interconnect-fhir-oauth/oauth2/authorize",
-    "exp": 1622569200,
-    "jti": "unique-jwt-id"
+    "aud": "https://fhir.epic.com/interconnect-fhir-oauth/oauth2/token",
+    "jti": "f9eaafba-2e49-11ea-8880-5ce0c5aee679",
+    "exp": 1583524402,
 }
 
-# Header
-headers = {"alg": "RS256", "typ": "JWT"}
+# Create the token using RS384 algorithm
+token = jwt.encode(token_payload, private_key, algorithm="RS384", headers={"alg": "RS384", "typ": "JWT"})
 
-# Encode the JWT
-token = jwt.encode(
-    payload,
-    private_key,
-    algorithm="RS256",
-    headers=headers
-)
-
-# Print the token
-print(token)
+# Save the token to a JSON file
+with open('jwt_token.json', 'w') as json_file:
+    json_file.write(token.decode('utf-8'))
